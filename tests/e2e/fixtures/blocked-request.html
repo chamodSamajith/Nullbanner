@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head><title>Nullbanner e2e fixture</title></head>
+  <body>
+    <div id="result">pending</div>
+    <script>
+      // Path-fragment rule (id 3 in test-ruleset.json) blocks any request
+      // whose URL contains "/ads/", regardless of host — so this works
+      // against the test server without needing external DNS resolution.
+      fetch(window.location.origin + "/ads/banner.js")
+        .then(() => {
+          document.getElementById("result").textContent = "not-blocked";
+        })
+        .catch(() => {
+          document.getElementById("result").textContent = "blocked";
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nullbanner — Block ads and trackers, privately</title>
+<meta name="description" content="Nullbanner is an open-source Manifest V3 Chrome extension that blocks ads and trackers using declarativeNetRequest. No telemetry, no filter-list downloads phoning home, GPLv3." />
+<link rel="icon" href="favicon.png" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f8fafc;
+    --bg-card: #ffffff;
+    --text: #0f172a;
+    --text-soft: #475569;
+    --text-faint: #94a3b8;
+    --border: #e2e8f0;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --accent-text: #1d4ed8;
+    --ok: #059669;
+    --ok-soft: #ecfdf5;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120;
+      --bg-soft: #0f172a;
+      --bg-card: #131c31;
+      --text: #f1f5f9;
+      --text-soft: #cbd5e1;
+      --text-faint: #64748b;
+      --border: #1e293b;
+      --accent: #3b82f6;
+      --accent-soft: #17233d;
+      --accent-text: #93c5fd;
+      --ok: #34d399;
+      --ok-soft: #0d2b21;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; display: block; }
+  a { color: var(--accent-text); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* nav */
+  nav.top {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--text); text-decoration: none; }
+  .brand svg { flex: none; }
+  .nav-links { display: flex; align-items: center; gap: 28px; }
+  .nav-links a { color: var(--text-soft); text-decoration: none; font-size: 14px; font-weight: 500; }
+  .nav-links a:hover { color: var(--text); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; text-decoration: none;
+    border: 1px solid transparent; cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 6px 16px rgba(37,99,235,.28); }
+  .btn-primary:hover { background: var(--accent-text); }
+  .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  .btn-ghost:hover { background: var(--bg-soft); }
+
+  /* hero */
+  header.hero { padding: 88px 0 64px; text-align: center; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-soft); color: var(--accent-text);
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    margin-bottom: 24px;
+  }
+  h1.headline {
+    font-size: clamp(32px, 5.5vw, 56px);
+    line-height: 1.08; letter-spacing: -0.02em; font-weight: 800; margin: 0 0 20px;
+  }
+  h1.headline .accent { color: var(--accent-text); }
+  .sub {
+    max-width: 620px; margin: 0 auto 36px;
+    color: var(--text-soft); font-size: 18px; line-height: 1.6;
+  }
+  .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .hero-note { color: var(--text-faint); font-size: 13px; }
+
+  /* badges row */
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 28px 0 0; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg-soft); border: 1px solid var(--border);
+    color: var(--text-soft); padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+
+  /* screenshot showcase */
+  section.showcase { padding: 20px 0 80px; }
+  .device {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+    max-width: 380px;
+    margin: 0 auto;
+  }
+  .device img { border-radius: 10px; border: 1px solid var(--border); }
+  .device-caption { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 14px; }
+
+  /* features */
+  section.features { padding: 72px 0; background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .section-head { text-align: center; max-width: 600px; margin: 0 auto 48px; }
+  .section-head h2 { font-size: clamp(26px, 3.5vw, 34px); letter-spacing: -0.01em; margin: 0 0 12px; font-weight: 800; }
+  .section-head p { color: var(--text-soft); font-size: 16px; margin: 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; box-shadow: var(--shadow);
+  }
+  .card .icon {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center; color: var(--accent-text);
+    margin-bottom: 16px;
+  }
+  .card h3 { font-size: 16px; margin: 0 0 8px; font-weight: 700; }
+  .card p { margin: 0; color: var(--text-soft); font-size: 14px; line-height: 1.6; }
+
+  /* how it works / gallery */
+  section.gallery { padding: 80px 0; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  @media (max-width: 780px) { .gallery-grid { grid-template-columns: 1fr; max-width: 380px; margin: 0 auto; } }
+  .shot { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 12px; box-shadow: var(--shadow); }
+  .shot img { border-radius: 8px; border: 1px solid var(--border); }
+  .shot p { text-align: center; color: var(--text-soft); font-size: 13px; margin: 12px 0 2px; font-weight: 600; }
+
+  /* install steps */
+  section.install { padding: 72px 0; background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .steps { counter-reset: step; max-width: 720px; margin: 0 auto; }
+  .step {
+    counter-increment: step;
+    display: flex; gap: 18px; align-items: flex-start;
+    padding: 18px 0; border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step::before {
+    content: counter(step);
+    flex: none; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step .body h4 { margin: 4px 0 6px; font-size: 15px; font-weight: 700; }
+  .step .body p { margin: 0; color: var(--text-soft); font-size: 14px; }
+  .step code {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 2px 7px; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .store-note {
+    max-width: 720px; margin: 32px auto 0; text-align: center;
+    color: var(--text-faint); font-size: 13.5px;
+  }
+
+  /* roadmap */
+  section.roadmap { padding: 72px 0; }
+  .timeline { max-width: 640px; margin: 0 auto; }
+  .phase {
+    display: flex; gap: 16px; padding: 14px 0;
+  }
+  .phase .marker { flex: none; display: flex; flex-direction: column; align-items: center; }
+  .phase .dot2 {
+    width: 12px; height: 12px; border-radius: 50%; margin-top: 4px;
+    border: 2px solid var(--accent);
+  }
+  .phase.done .dot2 { background: var(--accent); }
+  .phase .line { flex: 1; width: 2px; background: var(--border); margin-top: 4px; }
+  .phase:last-child .line { display: none; }
+  .phase h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 700; }
+  .phase p { margin: 0; color: var(--text-soft); font-size: 13.5px; }
+  .phase .tag {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .03em;
+    padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: middle;
+  }
+  .phase.done .tag { background: var(--ok-soft); color: var(--ok); }
+  .phase:not(.done) .tag { background: var(--bg-soft); color: var(--text-faint); border: 1px solid var(--border); }
+
+  /* footer */
+  footer.site {
+    padding: 48px 0; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  }
+  footer.site .fbrand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); }
+  footer.site .flinks { display: flex; gap: 24px; flex-wrap: wrap; }
+  footer.site a { color: var(--text-soft); text-decoration: none; font-size: 14px; }
+  footer.site a:hover { color: var(--text); }
+  .fine { color: var(--text-faint); font-size: 12.5px; width: 100%; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 5.5V11c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5.5L12 2Z" fill="#2563eb"/>
+        <path d="M9 12.2l2.2 2.2 4.3-4.6" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Nullbanner
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#screenshots">Screenshots</a>
+      <a href="#install">Install</a>
+      <a href="#roadmap">Roadmap</a>
+      <a class="btn btn-primary" href="https://github.com/REPLACE_ME/nullbanner">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="eyebrow">🛡️ Open source · GPLv3 · Manifest V3</span>
+    <h1 class="headline">Block ads and trackers.<br><span class="accent">Nothing phones home.</span></h1>
+    <p class="sub">
+      Nullbanner is a lightweight Chrome extension built on Chrome's native
+      <code>declarativeNetRequest</code> engine — fast, private network-level
+      blocking with no telemetry, and every line of it auditable on GitHub.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#install">Install from source</a>
+      <a class="btn btn-ghost" href="https://github.com/REPLACE_ME/nullbanner">View source on GitHub</a>
+    </div>
+    <p class="hero-note">Not yet on the Chrome Web Store — see the install guide below.</p>
+    <div class="badges">
+      <span class="badge"><span class="dot"></span> No telemetry</span>
+      <span class="badge"><span class="dot"></span> No remote code</span>
+      <span class="badge"><span class="dot"></span> GPLv3 licensed</span>
+      <span class="badge"><span class="dot"></span> Manifest V3</span>
+    </div>
+  </div>
+</header>
+
+<section class="showcase">
+  <div class="wrap">
+    <div class="device">
+      <img src="screenshots/popup-enabled.png" alt="Nullbanner popup showing protection enabled on a site" />
+      <p class="device-caption">The popup — global switch, per-site toggle, live protection status</p>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Built to be trusted, not just installed</h2>
+      <p>Every design choice favors transparency and your privacy over convenience shortcuts.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3.5v5.9c0 5.2-3.4 9.6-8 11-4.6-1.4-8-5.8-8-11V5.5L12 2Z" stroke="currentColor" stroke-width="1.8"/></svg>
+        </div>
+        <h3>Native network-level blocking</h3>
+        <p>Uses Chrome's built-in <code>declarativeNetRequest</code> API instead of injecting blocking logic at runtime — faster, and reviewable rule-by-rule.</p>
+      </div>
+      <div class="card">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M4 6h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Per-site control</h3>
+        <p>Toggle protection for the site you're on without touching your global settings — never a broken checkout page again.</p>
+      </div>
+      <div class="card">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3>No remote code, ever</h3>
+        <p>No <code>eval</code>, no dynamically fetched scripts, no filter lists silently downloaded and run. What you audit is what runs.</p>
+      </div>
+      <div class="card">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Minimal permissions</h3>
+        <p>No broad host access requested. Nullbanner asks for exactly what network-rule blocking needs — nothing more.</p>
+      </div>
+      <div class="card">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H4z" stroke="currentColor" stroke-width="1.8"/><path d="M8 20h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Lightweight by design</h3>
+        <p>Built with Preact instead of a heavier framework — a small, fast popup with no unnecessary bundle weight.</p>
+      </div>
+      <div class="card">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h3>Fully open source</h3>
+        <p>GPLv3 licensed. Read the code, fork it, or send a pull request — nothing is hidden behind a closed binary.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="gallery" id="screenshots">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>See it in action</h2>
+      <p>A quick look at the popup states and the options page.</p>
+    </div>
+    <div class="gallery-grid">
+      <div class="shot">
+        <img src="screenshots/popup-site-disabled.png" alt="Popup with the current site's protection disabled and a reload hint" />
+        <p>Per-site toggle, with a reload reminder</p>
+      </div>
+      <div class="shot">
+        <img src="screenshots/popup-global-off.png" alt="Popup with global protection switched off" />
+        <p>Global on/off switch</p>
+      </div>
+      <div class="shot">
+        <img src="screenshots/options-page.png" alt="Nullbanner options page" />
+        <p>Options page</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="install" id="install">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Install it in a couple of minutes</h2>
+      <p>Nullbanner isn't on the Chrome Web Store yet — load it from source instead.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="body">
+          <h4>Clone and build</h4>
+          <p><code>git clone https://github.com/REPLACE_ME/nullbanner.git && cd nullbanner && pnpm install && pnpm build</code></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="body">
+          <h4>Open Chrome's extensions page</h4>
+          <p>Go to <code>chrome://extensions</code> and turn on <strong>Developer mode</strong> (top-right toggle).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="body">
+          <h4>Load the unpacked extension</h4>
+          <p>Click <strong>Load unpacked</strong> and select the <code>dist/</code> folder produced by the build.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="body">
+          <h4>Pin it and go</h4>
+          <p>Click the puzzle-piece icon in Chrome's toolbar and pin Nullbanner for one-click access.</p>
+        </div>
+      </div>
+    </div>
+    <p class="store-note">Full instructions, development scripts, and test commands are in the <a href="https://github.com/REPLACE_ME/nullbanner#readme">project README</a>.</p>
+  </div>
+</section>
+
+<section class="roadmap" id="roadmap">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Roadmap</h2>
+      <p>Nullbanner ships in phases — here's what's done and what's next.</p>
+    </div>
+    <div class="timeline">
+      <div class="phase done">
+        <div class="marker"><div class="dot2"></div><div class="line"></div></div>
+        <div>
+          <h4>Phase 1 — Core skeleton <span class="tag">shipped</span></h4>
+          <p>Manifest V3 setup, declarativeNetRequest network blocking, popup + options UI, test ruleset, CI.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="marker"><div class="dot2"></div><div class="line"></div></div>
+        <div>
+          <h4>Phase 2 — Cosmetic filtering <span class="tag">planned</span></h4>
+          <p>CSS-based element hiding via content scripts, allowlist editing in the options page.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="marker"><div class="dot2"></div><div class="line"></div></div>
+        <div>
+          <h4>Phase 3 — Scriptlets &amp; YouTube <span class="tag">planned</span></h4>
+          <p>Scriptlet injection for harder-to-block ad patterns, YouTube-specific handling.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="marker"><div class="dot2"></div><div class="line"></div></div>
+        <div>
+          <h4>Phase 4 — Real filter lists <span class="tag">planned</span></h4>
+          <p>Downloading and compiling EasyList/EasyPrivacy into DNR rulesets, replacing the test ruleset.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="marker"><div class="dot2"></div><div class="line"></div></div>
+        <div>
+          <h4>Phase 5 — Store submission <span class="tag">planned</span></h4>
+          <p>Chrome Web Store assets, privacy policy, listing, submission.</p>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="marker"><div class="dot2"></div></div>
+        <div>
+          <h4>Phase 6 — Firefox / Edge ports <span class="tag">planned</span></h4>
+          <p>Cross-browser support beyond Chrome.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; width:100%;">
+    <div class="fbrand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 5.5V11c0 5.25 3.4 9.74 8 11 4.6-1.26 8-5.75 8-11V5.5L12 2Z" fill="#2563eb"/></svg>
+      Nullbanner
+    </div>
+    <div class="flinks">
+      <a href="https://github.com/REPLACE_ME/nullbanner">GitHub</a>
+      <a href="https://github.com/REPLACE_ME/nullbanner/issues">Issues</a>
+      <a href="https://github.com/REPLACE_ME/nullbanner/blob/main/LICENSE">License (GPLv3)</a>
+    </div>
+    <p class="fine">Nullbanner is not affiliated with Google or the Chrome Web Store. Icons are placeholders pending final artwork.</p>
+  </div>
+</footer>
+
+</body>
+</html>
