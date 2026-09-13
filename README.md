@@ -76,6 +76,12 @@ This repo currently implements:
 - Global on/off via `updateEnabledRulesets`
 - A Preact + Tailwind popup: global switch, per-site toggle with a reload
   hint, a protection-status row, and options/report-issue links
+- A **popup/redirect guard** (`src/content/guard-main.ts` +
+  `guard-bridge.ts`): blocks `window.open()` outright on any page where
+  protection is on — the mechanism behind "click anywhere and it opens a
+  scam site in a new tab" hijacks seen on some streaming/piracy sites. See
+  [Popup/redirect guard](#popupredirect-guard) below for exactly what it
+  does and doesn't cover.
 
 ### Deviations from the original brief (and why)
 - **No `host_permissions: ["<all_urls>"]` in this phase.** DNR block/allow
@@ -101,6 +107,29 @@ This repo currently implements:
   `chrome.*` mock (`tests/unit/chrome-mock.ts`) scoped to exactly the APIs
   the background worker calls.
 
+## Popup/redirect guard
+
+Some sites (streaming/piracy sites especially) bind a click handler on the
+whole page that calls `window.open()` to shove a scam or ad page into a new
+tab no matter where you click. Nullbanner blocks this by overriding
+`window.open` in the page's own JS context whenever protection is on for
+that site.
+
+**Scope, stated plainly:**
+- ✅ Blocks all `window.open()` calls — the same blunt approach classic
+  "block all pop-ups" browser features use. It does not try to distinguish
+  a legitimate popup (e.g. an OAuth login window) from an abusive one —
+  that distinction isn't reliably automatable from a content script. If a
+  legitimate site's popup stops working, disable protection for that one
+  site in the Nullbanner popup.
+- ❌ Does **not** intercept full-page redirects done via `location.href =`,
+  `location.assign()`, or meta-refresh. Reliably overriding the `location`
+  binding itself isn't a stable, well-documented capability across Chrome
+  versions, so rather than guess at it, it's out of scope for now.
+- This is a mitigation for one specific, common hijack pattern — it is not
+  a substitute for real filter lists (Phase 4), which is what actually stops
+  ad/tracker requests from loading in the first place.
+
 ## Roadmap
 
 - **Phase 2** — Cosmetic (CSS) hiding via content scripts, `scripting` +
@@ -120,7 +149,8 @@ None of the above is implemented yet.
 src/background/    service worker — network rules, per-site/global toggles
 src/popup/         Preact + Tailwind popup UI
 src/options/       options page stub
-src/content/       cosmetic content script stub (Phase 2)
+src/content/       popup/redirect guard (guard-main.ts/guard-bridge.ts) +
+                   cosmetic content script stub (Phase 2)
 src/shared/        typed storage + messaging wrappers
 rulesets/          hand-written test DNR ruleset + its documentation
 tests/unit/        Vitest unit tests (background logic, chrome.* mock)
