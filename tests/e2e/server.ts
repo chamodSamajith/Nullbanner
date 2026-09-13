@@ -25,6 +25,18 @@ export function startFixtureServer(port: number) {
         });
       return;
     }
+    if (req.url === "/popup-hijack.html") {
+      readFile(path.join(dir, "fixtures/popup-hijack.html"))
+        .then((buf) => {
+          res.writeHead(200, { "content-type": "text/html" });
+          res.end(buf);
+        })
+        .catch(() => {
+          res.writeHead(404);
+          res.end();
+        });
+      return;
+    }
     res.writeHead(404);
     res.end();
   });

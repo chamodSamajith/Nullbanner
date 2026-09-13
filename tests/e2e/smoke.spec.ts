@@ -30,6 +30,41 @@ test("blocks a fixture request matching the test ruleset", async () => {
   await expect(page.locator("#result")).toHaveText("blocked", { timeout: 5000 });
 });
 
+test("popup guard blocks a window.open hijack triggered by a page click", async () => {
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/popup-hijack.html`);
+  await page.click("body");
+  await expect(page.locator("#result")).toHaveText("blocked", { timeout: 5000 });
+});
+
+test("disabling protection for a hostname lets window.open through again", async () => {
+  let [worker] = context.serviceWorkers();
+  if (!worker) worker = await context.waitForEvent("serviceworker");
+  const extensionId = worker.url().split("/")[2];
+
+  // Drive this through the same storage key src/shared/storage.ts reads/
+  // writes, rather than simulating real tab-focus switching (which the
+  // popup's chrome.tabs.query({active:true}) call doesn't tolerate well in
+  // this harness — see the "No site loaded" test above).
+  const settingsPage = await context.newPage();
+  await settingsPage.goto(`chrome-extension://${extensionId}/src/options/index.html`);
+  await settingsPage.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        chrome.storage.local.set(
+          { nullbanner: { schemaVersion: 1, globalEnabled: true, siteAllowlist: ["localhost"] } },
+          () => resolve()
+        );
+      })
+  );
+  await settingsPage.close();
+
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/popup-hijack.html`);
+  await page.click("body");
+  await expect(page.locator("#result")).toHaveText("opened", { timeout: 5000 });
+});
+
 test("popup loads and resolves status without hanging on 'Loading…'", async () => {
   // Opening the popup as a plain tab (rather than via the toolbar action)
   // means chrome.tabs.query({active:true}) sees the popup's own
