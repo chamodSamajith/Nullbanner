@@ -28,15 +28,18 @@ async function ruleIdForHostname(hostname: string): Promise<number> {
   // case (no collision) while staying safe in the rare case.
   let candidate = base;
   const owner = existing.find((r) => r.id === candidate);
-  if (owner && owner.condition.initiatorDomains?.[0] !== hostname) {
+  if (owner && owner.condition.requestDomains?.[0] !== hostname) {
     while (existingIds.has(candidate)) candidate++;
   }
   return candidate;
 }
 
+// Storage is the single source of truth for the allowlist — the popup, the
+// dynamic DNR rule, and the content-script guard (guard-bridge.ts) all key
+// off it, so they can never disagree with each other.
 async function isSiteDisabled(hostname: string): Promise<boolean> {
-  const rules = await chrome.declarativeNetRequest.getDynamicRules();
-  return rules.some((r) => r.condition.initiatorDomains?.[0] === hostname);
+  const { siteAllowlist } = await getStorage();
+  return siteAllowlist.includes(hostname);
 }
 
 async function toggleSite(hostname: string): Promise<boolean> {
@@ -52,15 +55,23 @@ async function toggleSite(hostname: string): Promise<boolean> {
     return false;
   }
 
+  // allowAllRequests on a document request whitelists every sub-request
+  // that document makes. The document is identified by requestDomains —
+  // NOT initiatorDomains, which for a navigation is the *referring* page
+  // (or nothing at all when the URL is typed into the address bar).
   await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: [ruleId], // idempotent: replace if a stale copy exists
     addRules: [
       {
         id: ruleId,
         priority: 1,
         action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW_ALL_REQUESTS },
         condition: {
-          initiatorDomains: [hostname],
-          resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME]
+          requestDomains: [hostname],
+          resourceTypes: [
+            chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
+            chrome.declarativeNetRequest.ResourceType.SUB_FRAME
+          ]
         }
       }
     ]

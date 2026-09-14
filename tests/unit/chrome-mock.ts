@@ -47,7 +47,7 @@ export function installChromeMock() {
     },
     declarativeNetRequest: {
       RuleActionType: { ALLOW_ALL_REQUESTS: "allowAllRequests", BLOCK: "block", ALLOW: "allow" },
-      ResourceType: { MAIN_FRAME: "main_frame" },
+      ResourceType: { MAIN_FRAME: "main_frame", SUB_FRAME: "sub_frame" },
       getDynamicRules: vi.fn(async () => dynamicRules),
       updateDynamicRules: vi.fn(
         async (opts: { addRules?: chrome.declarativeNetRequest.Rule[]; removeRuleIds?: number[] }) => {

@@ -18,14 +18,19 @@ describe("background service worker", () => {
 
     await send({ type: "TOGGLE_SITE", hostname: "example.com" });
     expect(getDynamicRules()).toHaveLength(1);
-    expect(getDynamicRules()[0]?.condition.initiatorDomains).toEqual(["example.com"]);
+    expect(getDynamicRules()[0]?.condition.requestDomains).toEqual(["example.com"]);
+    // allowAllRequests must target the document itself (requestDomains), and
+    // both frame types, or it silently does nothing for direct navigations.
+    expect(getDynamicRules()[0]?.condition.initiatorDomains).toBeUndefined();
+    expect(getDynamicRules()[0]?.condition.resourceTypes).toEqual(["main_frame", "sub_frame"]);
+    expect(getDynamicRules()[0]?.action.type).toBe("allowAllRequests");
 
     await send({ type: "TOGGLE_SITE", hostname: "other.com" });
     expect(getDynamicRules()).toHaveLength(2);
 
     await send({ type: "TOGGLE_SITE", hostname: "example.com" });
     expect(getDynamicRules()).toHaveLength(1);
-    expect(getDynamicRules()[0]?.condition.initiatorDomains).toEqual(["other.com"]);
+    expect(getDynamicRules()[0]?.condition.requestDomains).toEqual(["other.com"]);
   });
 
   it("reuses the same dynamic rule id for the same hostname across toggles", async () => {
