@@ -19,6 +19,7 @@ export function installChromeMock() {
   const chromeMock = {
     runtime: {
       onInstalled: { addListener: vi.fn() },
+      onStartup: { addListener: vi.fn() },
       onMessage: {
         addListener: vi.fn((fn: (typeof messageListeners)[number]) => {
           messageListeners.push(fn);
@@ -49,6 +50,7 @@ export function installChromeMock() {
       RuleActionType: { ALLOW_ALL_REQUESTS: "allowAllRequests", BLOCK: "block", ALLOW: "allow" },
       ResourceType: { MAIN_FRAME: "main_frame", SUB_FRAME: "sub_frame" },
       getDynamicRules: vi.fn(async () => dynamicRules),
+      getEnabledRulesets: vi.fn(async () => [...enabledRulesets]),
       updateDynamicRules: vi.fn(
         async (opts: { addRules?: chrome.declarativeNetRequest.Rule[]; removeRuleIds?: number[] }) => {
           if (opts.removeRuleIds) {
@@ -61,7 +63,10 @@ export function installChromeMock() {
       ),
       updateEnabledRulesets: vi.fn(
         async (opts: { enableRulesetIds?: string[]; disableRulesetIds?: string[] }) => {
-          opts.enableRulesetIds?.forEach((id) => enabledRulesets.add(id));
+          for (const id of opts.enableRulesetIds ?? []) {
+            if (id === "__over-budget__") throw new Error("Rule count exceeds available static rule count");
+            enabledRulesets.add(id);
+          }
           opts.disableRulesetIds?.forEach((id) => enabledRulesets.delete(id));
         }
       )

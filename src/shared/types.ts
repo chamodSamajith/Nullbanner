@@ -16,16 +16,21 @@ export interface StorageSchema {
   globalEnabled: boolean;
   /** Hostnames where blocking is turned off (dynamic allow rule active). */
   siteAllowlist: string[];
+  /**
+   * Outcome of enabling each compiled filter list (see filter-lists.ts):
+   * "enabled", or "over-budget" if Chrome's static-rule budget was exhausted
+   * before this list. Shown on the options page.
+   */
+  listRulesets: Record<string, ListRulesetStatus>;
 }
+
+export type ListRulesetStatus = "enabled" | "over-budget";
 
 export const DEFAULT_STORAGE: StorageSchema = {
   schemaVersion: 1,
   globalEnabled: true,
-  siteAllowlist: []
+  siteAllowlist: [],
+  listRulesets: {}
 };
 
 export const TEST_RULESET_ID = "test-ruleset";
-export const AD_NETWORKS_RULESET_ID = "ad-networks";
-
-/** Every static ruleset; the global switch enables/disables them together. */
-export const RULESET_IDS: string[] = [TEST_RULESET_ID, AD_NETWORKS_RULESET_ID];

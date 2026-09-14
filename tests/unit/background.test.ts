@@ -47,23 +47,41 @@ describe("background service worker", () => {
     expect(secondId).toBe(firstId);
   });
 
-  it("global toggle enables/disables the test ruleset and updates storage", async () => {
-    const { chromeMock, storageData } = installChromeMock();
+  it("global toggle disables every enabled ruleset, then re-enables builtins and lists", async () => {
+    const { enabledRulesets, storageData } = installChromeMock();
     storageData.nullbanner = { ...DEFAULT_STORAGE };
     await import("../../src/background/index");
     const send = (msg: unknown) => chrome.runtime.sendMessage(msg);
 
     await send({ type: "TOGGLE_GLOBAL" });
-    expect(chromeMock.declarativeNetRequest.updateEnabledRulesets).toHaveBeenCalledWith({
-      disableRulesetIds: ["test-ruleset", "ad-networks"]
-    });
+    expect([...enabledRulesets]).toEqual([]);
     expect((storageData.nullbanner as { globalEnabled: boolean }).globalEnabled).toBe(false);
 
     await send({ type: "TOGGLE_GLOBAL" });
-    expect(chromeMock.declarativeNetRequest.updateEnabledRulesets).toHaveBeenCalledWith({
-      enableRulesetIds: ["test-ruleset", "ad-networks"]
-    });
+    expect([...enabledRulesets].sort()).toEqual(["ad-networks", "easylist", "easyprivacy", "test-ruleset"]);
     expect((storageData.nullbanner as { globalEnabled: boolean }).globalEnabled).toBe(true);
+  });
+
+  it("on install, enables compiled lists one by one and records an over-budget list", async () => {
+    const { chromeMock, enabledRulesets, storageData } = installChromeMock();
+    enabledRulesets.clear();
+    const { LIST_RULESET_IDS } = await import("../../src/shared/filter-lists");
+    // Make the second list "not fit" — the mock throws for this sentinel id.
+    const original = [...LIST_RULESET_IDS];
+    LIST_RULESET_IDS.splice(1, 1, "__over-budget__");
+    try {
+      await import("../../src/background/index");
+      const onInstalled = chromeMock.runtime.onInstalled.addListener.mock.calls[0]?.[0] as () => void;
+      onInstalled();
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(enabledRulesets.has("easylist")).toBe(true);
+      expect(enabledRulesets.has("__over-budget__")).toBe(false);
+      const stored = storageData.nullbanner as { listRulesets: Record<string, string> };
+      expect(stored.listRulesets).toEqual({ easylist: "enabled", "__over-budget__": "over-budget" });
+    } finally {
+      LIST_RULESET_IDS.splice(0, LIST_RULESET_IDS.length, ...original);
+    }
   });
 
   it("GET_STATUS reports siteDisabled correctly", async () => {

@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { getStorage, initStorage, updateStorage } from "../shared/storage";
 import { onMessage, type StatusResponse } from "../shared/messaging";
-import { RULESET_IDS } from "../shared/types";
+import { BUILTIN_RULESET_IDS, LIST_RULESET_IDS } from "../shared/filter-lists";
+import type { ListRulesetStatus } from "../shared/types";
+
+// The per-site allowAllRequests rule must outrank every compiled filter rule,
+// including $important blocks (priority 2) — see src/compiler/abp-to-dnr.ts.
+const SITE_ALLOW_PRIORITY = 100;
 
 // Dynamic rule IDs must be stable per-hostname integers so toggling a site
 // off then on again reuses the same ID instead of leaking a fresh one each
@@ -64,7 +69,7 @@ async function toggleSite(hostname: string): Promise<boolean> {
     addRules: [
       {
         id: ruleId,
-        priority: 1,
+        priority: SITE_ALLOW_PRIORITY,
         action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW_ALL_REQUESTS },
         condition: {
           requestDomains: [hostname],
@@ -83,15 +88,52 @@ async function toggleSite(hostname: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Enable the compiled filter lists (EasyList, EasyPrivacy, …) one at a time,
+ * in the priority order of FILTER_LISTS. Together they exceed Chrome's
+ * guaranteed 30,000 static rules; how many more fit depends on the global
+ * pool shared with every other DNR extension the user has installed
+ * (MAX_NUMBER_OF_STATIC_RULES). Chrome rejects an enable that would exceed
+ * it, so each list is tried on its own and the outcome recorded for the
+ * options page. Enabled rulesets persist, so this is cheap to re-run.
+ */
+async function enableListRulesets(): Promise<void> {
+  const alreadyOn = new Set(await chrome.declarativeNetRequest.getEnabledRulesets());
+  const status: Record<string, ListRulesetStatus> = {};
+  for (const id of LIST_RULESET_IDS) {
+    if (alreadyOn.has(id)) {
+      status[id] = "enabled";
+      continue;
+    }
+    try {
+      await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: [id] });
+      status[id] = "enabled";
+    } catch (error) {
+      status[id] = "over-budget";
+      console.warn(`Nullbanner: could not enable ruleset "${id}":`, error);
+    }
+  }
+  await updateStorage((s) => ({ ...s, listRulesets: status }));
+}
+
+async function applyGlobalState(enabled: boolean): Promise<void> {
+  if (enabled) {
+    await chrome.declarativeNetRequest.updateEnabledRulesets({
+      enableRulesetIds: BUILTIN_RULESET_IDS
+    });
+    await enableListRulesets();
+  } else {
+    const on = await chrome.declarativeNetRequest.getEnabledRulesets();
+    if (on.length) {
+      await chrome.declarativeNetRequest.updateEnabledRulesets({ disableRulesetIds: on });
+    }
+  }
+}
+
 async function toggleGlobal(): Promise<boolean> {
   const storage = await getStorage();
   const nextEnabled = !storage.globalEnabled;
-
-  if (nextEnabled) {
-    await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: RULESET_IDS });
-  } else {
-    await chrome.declarativeNetRequest.updateEnabledRulesets({ disableRulesetIds: RULESET_IDS });
-  }
+  await applyGlobalState(nextEnabled);
   await updateStorage((s) => ({ ...s, globalEnabled: nextEnabled }));
   return nextEnabled;
 }
@@ -102,11 +144,23 @@ async function updateBadge(): Promise<void> {
   await chrome.action.setBadgeBackgroundColor({ color: "#dc2626" });
 }
 
+async function syncRulesets(): Promise<void> {
+  const { globalEnabled } = await getStorage();
+  await applyGlobalState(globalEnabled);
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   void (async () => {
     await initStorage();
+    await syncRulesets();
     await updateBadge();
   })();
+});
+
+// Rule budgets can change between sessions (another DNR extension installed
+// or removed), so re-check what could be enabled on every browser start.
+chrome.runtime.onStartup.addListener(() => {
+  void syncRulesets();
 });
 
 onMessage((message) => {

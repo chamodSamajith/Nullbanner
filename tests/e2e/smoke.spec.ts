@@ -42,6 +42,35 @@ test("blocks a fixture request matching the test ruleset", async () => {
   await expect(page.locator("#result")).toHaveText("blocked", { timeout: 5000 });
 });
 
+test("compiled EasyList/EasyPrivacy rulesets are enabled and match real ad/tracker URLs", async () => {
+  let [worker] = context.serviceWorkers();
+  if (!worker) worker = await context.waitForEvent("serviceworker");
+  // onInstalled enables the lists asynchronously; give it a moment.
+  await expect
+    .poll(() => worker.evaluate(() => chrome.declarativeNetRequest.getEnabledRulesets()), {
+      timeout: 15000
+    })
+    .toEqual(expect.arrayContaining(["easylist", "easyprivacy"]));
+
+  const matches = await worker.evaluate(async () => {
+    const dnr = chrome.declarativeNetRequest as unknown as {
+      testMatchOutcome(r: object): Promise<{ matchedRules: { rulesetId: string }[] }>;
+    };
+    const probe = async (url: string, type: string) =>
+      (await dnr.testMatchOutcome({ url, type, initiator: "https://example.com" })).matchedRules.map(
+        (m) => m.rulesetId
+      );
+    return {
+      ads: await probe("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js", "script"),
+      tracker: await probe("https://www.google-analytics.com/analytics.js", "script"),
+      plain: await probe("https://example.org/index.html", "main_frame")
+    };
+  });
+  expect(matches.ads).toContain("easylist");
+  expect(matches.tracker).toContain("easyprivacy");
+  expect(matches.plain).toEqual([]);
+});
+
 test("ad-networks ruleset blocks a popunder loader by URL signature", async () => {
   const page = await context.newPage();
   await page.goto(`http://localhost:${PORT}/popunder-loader.html`);

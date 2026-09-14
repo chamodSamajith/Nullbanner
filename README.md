@@ -57,6 +57,9 @@ Then:
 ## Development
 
 ```bash
+pnpm compile-lists  # download + compile EasyList/EasyPrivacy (run once before
+                    # `pnpm dev`; `pnpm build` does it automatically; add
+                    # --refresh to bypass the 24h .cache/)
 pnpm dev         # HMR dev build for popup/options work — NOTE: the popup guard
                  # content scripts only work in `pnpm build` output (see
                  # vite.config.ts), so test blocking behaviour against dist/
@@ -74,7 +77,14 @@ This repo currently implements:
 - A hand-written, ~10-rule test DNR ruleset (`rulesets/test-ruleset.json`,
   documented rule-by-rule in `rulesets/test-ruleset.md`) used to validate the
   blocking pipeline end-to-end
-- A first **real** blocking ruleset, `rulesets/ad-networks.json` (see
+- **Real filter lists (Phase 4, part 1):** `pnpm build` downloads EasyList and
+  EasyPrivacy and compiles their network rules into DNR rulesets
+  (`scripts/compile-lists.ts` → `src/compiler/abp-to-dnr.ts`). Together they
+  exceed Chrome's guaranteed 30k static-rule minimum, so the background
+  worker enables them one at a time at install, in priority order, as the
+  browser's shared rule budget allows, and the options page shows what
+  loaded. Cosmetic filters in those lists are skipped until Phase 2.
+- A first hand-written blocking ruleset, `rulesets/ad-networks.json` (see
   `rulesets/ad-networks.md`): a small curated seed that blocks the
   popunder/redirect ad-network loader behind hijacks like lookmovie.date →
   "Ad Blocker Pro" — by URL signature as well as by host, plus the scam
@@ -152,9 +162,10 @@ that site.
 - **Phase 2** — Cosmetic (CSS) hiding via content scripts, `scripting` +
   `host_permissions` added, options page gains allowlist/filter management
 - **Phase 3** — Scriptlet injection, YouTube-specific handling
-- **Phase 4** — Real filter list downloading & compilation (EasyList,
-  EasyPrivacy, etc.) into DNR rulesets, replacing the hand-written test
-  ruleset
+- **Phase 4** — Real filter lists. Part 1 (done): build-time compilation of
+  EasyList/EasyPrivacy into DNR rulesets, refreshed with each release. Part
+  2 (planned): a small runtime-fetched delta list applied as dynamic rules
+  between releases
 - **Phase 5** — Chrome Web Store assets, privacy policy, listing, submission
 - **Phase 6** — Firefox/Edge ports
 
@@ -169,7 +180,9 @@ src/options/       options page stub
 src/content/       popup/redirect guard (guard-main.ts/guard-bridge.ts) +
                    cosmetic content script stub (Phase 2)
 src/shared/        typed storage + messaging wrappers
-rulesets/          test DNR ruleset + curated ad-networks ruleset, each documented
+rulesets/          hand-written rulesets (documented) + compiled lists (generated, git-ignored)
+src/compiler/      ABP filter syntax -> DNR converter (unit-tested)
+scripts/           compile-lists.ts — downloads + compiles lists at build time
 tests/unit/        Vitest unit tests (background logic, chrome.* mock)
 tests/e2e/         Playwright e2e smoke tests
 docs/              GitHub Pages landing page (this repo's marketing site)
