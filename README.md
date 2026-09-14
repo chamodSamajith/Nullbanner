@@ -57,7 +57,9 @@ Then:
 ## Development
 
 ```bash
-pnpm dev         # HMR dev build — reload the unpacked extension after changes
+pnpm dev         # HMR dev build for popup/options work — NOTE: the popup guard
+                 # content scripts only work in `pnpm build` output (see
+                 # vite.config.ts), so test blocking behaviour against dist/
 pnpm typecheck
 pnpm lint
 pnpm test        # unit tests (Vitest)
@@ -122,6 +124,13 @@ that site.
   that distinction isn't reliably automatable from a content script. If a
   legitimate site's popup stops working, disable protection for that one
   site in the Nullbanner popup.
+- ✅ Also covers the usual ways around that: calling `open()` from a
+  freshly created about:blank iframe (popunder trick), and the page
+  programmatically clicking a generated `<a target="_blank">` that leads
+  off-site. Real user clicks on real links are never touched.
+- ✅ Runs before the first page script, and the on/off signal between its
+  two halves is authenticated with a nonce the page never sees, so a site
+  can't switch it off by forging a message.
 - ❌ Does **not** intercept full-page redirects done via `location.href =`,
   `location.assign()`, or meta-refresh. Reliably overriding the `location`
   binding itself isn't a stable, well-documented capability across Chrome

@@ -15,6 +15,34 @@ import pkg from "./package.json";
 // Phase 2 permissions, but Chrome's install-time permission prompt for this
 // extension will now mention reading/changing data on all sites, which is
 // inherent to any content script with <all_urls> matches.
+interface GuardScript {
+  matches: string[];
+  js: string[];
+  run_at: "document_start";
+  all_frames: true;
+  match_origin_as_fallback: true;
+  world?: "MAIN" | "ISOLATED";
+}
+
+// Both guard scripts run on every page, in every frame, at document_start.
+// `match_origin_as_fallback` also covers about:blank / srcdoc / data: frames
+// (which inherit the parent's origin) — the classic popunder trick is to call
+// open() from a throwaway about:blank iframe where content scripts don't run.
+// crxjs's manifest typings predate that field, so the entries are built via
+// a local interface (structural typing lets the extra field through, and it
+// is emitted verbatim into dist/manifest.json). Chrome has supported it
+// since 79.
+function guardScript(js: string, extra: Pick<GuardScript, "world">): GuardScript {
+  return {
+    matches: ["<all_urls>"],
+    js: [js],
+    run_at: "document_start",
+    all_frames: true,
+    match_origin_as_fallback: true,
+    ...extra
+  };
+}
+
 export default defineManifest({
   manifest_version: 3,
   name: "Nullbanner",
@@ -30,19 +58,8 @@ export default defineManifest({
   },
   options_page: "src/options/index.html",
   content_scripts: [
-    {
-      matches: ["<all_urls>"],
-      js: ["src/content/guard-main.ts"],
-      run_at: "document_start",
-      world: "MAIN",
-      all_frames: true
-    },
-    {
-      matches: ["<all_urls>"],
-      js: ["src/content/guard-bridge.ts"],
-      run_at: "document_start",
-      all_frames: true
-    }
+    guardScript("src/content/guard-main.ts", { world: "MAIN" }),
+    guardScript("src/content/guard-bridge.ts", {})
   ],
   declarative_net_request: {
     rule_resources: [

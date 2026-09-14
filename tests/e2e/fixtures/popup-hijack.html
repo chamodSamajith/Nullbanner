@@ -1,8 +1,21 @@
 <!doctype html>
 <html>
-  <head><title>Nullbanner popup-guard fixture</title></head>
+  <head>
+    <title>Nullbanner popup-guard fixture</title>
+    <script>
+      // Runs before anything else on the page. If the guard is injected
+      // synchronously at document_start (as it must be), window.open is
+      // already our stub here rather than the native function.
+      window.__guardAtLoad = /native code/.test(String(window.open)) ? "native" : "stubbed";
+      window.__nonceVisibleAtLoad = document.documentElement.hasAttribute("data-nullbanner-guard");
+    </script>
+  </head>
   <body>
     <div id="result">not-tried</div>
+    <!-- A real user click on this runs the synthetic-link hijack, so it carries
+         user activation (otherwise Chrome's own popup blocker would stop it
+         and the test would prove nothing). -->
+    <button id="hijack-link" onclick="event.stopPropagation(); trySyntheticLinkClick()">hijack</button>
     <script>
       // Simulates the "click anywhere opens a scam site in a new tab"
       // pattern seen on some streaming/piracy sites.
@@ -10,6 +23,33 @@
         const win = window.open("https://example-scam-site.example/", "_blank");
         document.getElementById("result").textContent = win ? "opened" : "blocked";
       });
+
+      // Bypass attempts a hostile page might try; each returns "opened"/"blocked".
+      window.tryBlankFrameOpen = () => {
+        const f = document.createElement("iframe");
+        f.src = "about:blank";
+        document.body.appendChild(f);
+        const w = f.contentWindow.open("https://example-scam-site.example/", "_blank");
+        f.remove();
+        return w ? "opened" : "blocked";
+      };
+
+      window.tryForgedDisarm = () => {
+        window.postMessage({ source: "nullbanner-popup-guard", nonce: "guess", armed: false }, "*");
+        return new Promise((r) => setTimeout(() => r(window.open("https://example-scam-site.example/") ? "opened" : "blocked"), 50));
+      };
+
+      window.trySyntheticLinkClick = () => {
+        const a = document.createElement("a");
+        a.href = "https://example.org/";
+        a.target = "_blank";
+        // Keep the synthetic click from also reaching the document-level
+        // window.open handler above, so this hook measures only the link path.
+        a.addEventListener("click", (e) => e.stopPropagation());
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      };
     </script>
   </body>
 </html>
