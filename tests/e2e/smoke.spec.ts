@@ -86,7 +86,11 @@ test("popup guard blocks a window.open hijack triggered by a page click", async 
 
 test("popup guard is installed synchronously before the first page script", async () => {
   const page = await context.newPage();
+  const frameErrors: string[] = [];
+  page.on("pageerror", (e) => frameErrors.push(e.message));
   await page.goto(`http://localhost:${PORT}/popup-hijack.html`);
+  await page.waitForTimeout(500);
+  expect(frameErrors).toEqual([]); // includes the sandboxed (insecure-context) iframe
   expect(await page.evaluate(() => (window as any).__guardAtLoad)).toBe("stubbed");
   expect(await page.evaluate(() => (window as any).__nonceVisibleAtLoad)).toBe(false);
   expect(

@@ -30,7 +30,15 @@ import {
 let armed = true;
 
 // --- 1. nonce handoff + state relay ----------------------------------------
-const nonce = crypto.randomUUID();
+// Not crypto.randomUUID(): that exists only in secure contexts, and this
+// script also runs in sandboxed / http: / opaque-origin frames, where it
+// would throw before the guard did anything. getRandomValues is universal.
+function makeNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+const nonce = makeNonce();
 document.documentElement.setAttribute(GUARD_NONCE_ATTR, nonce);
 
 void (async () => {

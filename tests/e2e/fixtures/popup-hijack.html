@@ -16,6 +16,9 @@
          user activation (otherwise Chrome's own popup blocker would stop it
          and the test would prove nothing). -->
     <button id="hijack-link" onclick="event.stopPropagation(); trySyntheticLinkClick()">hijack</button>
+    <!-- Opaque-origin frame: not a secure context, so anything in the guard
+         that assumes one (e.g. crypto.randomUUID) throws here. -->
+    <iframe id="sandboxed" sandbox="allow-scripts" srcdoc="<p>sandboxed</p>"></iframe>
     <script>
       // Simulates the "click anywhere opens a scam site in a new tab"
       // pattern seen on some streaming/piracy sites.
