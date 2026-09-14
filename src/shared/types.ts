@@ -25,3 +25,7 @@ export const DEFAULT_STORAGE: StorageSchema = {
 };
 
 export const TEST_RULESET_ID = "test-ruleset";
+export const AD_NETWORKS_RULESET_ID = "ad-networks";
+
+/** Every static ruleset; the global switch enables/disables them together. */
+export const RULESET_IDS: string[] = [TEST_RULESET_ID, AD_NETWORKS_RULESET_ID];

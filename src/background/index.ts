@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import { getStorage, initStorage, updateStorage } from "../shared/storage";
 import { onMessage, type StatusResponse } from "../shared/messaging";
-import { TEST_RULESET_ID } from "../shared/types";
+import { RULESET_IDS } from "../shared/types";
 
 // Dynamic rule IDs must be stable per-hostname integers so toggling a site
 // off then on again reuses the same ID instead of leaking a fresh one each
@@ -88,9 +88,9 @@ async function toggleGlobal(): Promise<boolean> {
   const nextEnabled = !storage.globalEnabled;
 
   if (nextEnabled) {
-    await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: [TEST_RULESET_ID] });
+    await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds: RULESET_IDS });
   } else {
-    await chrome.declarativeNetRequest.updateEnabledRulesets({ disableRulesetIds: [TEST_RULESET_ID] });
+    await chrome.declarativeNetRequest.updateEnabledRulesets({ disableRulesetIds: RULESET_IDS });
   }
   await updateStorage((s) => ({ ...s, globalEnabled: nextEnabled }));
   return nextEnabled;

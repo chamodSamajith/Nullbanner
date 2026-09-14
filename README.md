@@ -74,6 +74,11 @@ This repo currently implements:
 - A hand-written, ~10-rule test DNR ruleset (`rulesets/test-ruleset.json`,
   documented rule-by-rule in `rulesets/test-ruleset.md`) used to validate the
   blocking pipeline end-to-end
+- A first **real** blocking ruleset, `rulesets/ad-networks.json` (see
+  `rulesets/ad-networks.md`): a small curated seed that blocks the
+  popunder/redirect ad-network loader behind hijacks like lookmovie.date →
+  "Ad Blocker Pro" — by URL signature as well as by host, plus the scam
+  landing page itself. A stopgap until Phase 4 compiles full filter lists.
 - Per-site enable/disable via a deterministic dynamic `allowAllRequests` rule
 - Global on/off via `updateEnabledRulesets`
 - A Preact + Tailwind popup: global switch, per-site toggle with a reload
@@ -137,7 +142,10 @@ that site.
   versions, so rather than guess at it, it's out of scope for now.
 - This is a mitigation for one specific, common hijack pattern — it is not
   a substitute for real filter lists (Phase 4), which is what actually stops
-  ad/tracker requests from loading in the first place.
+  ad/tracker requests from loading in the first place. Same-tab redirects
+  (which the guard can't see) are instead handled at the network layer by
+  blocking the ad-network loader that performs them — see
+  `rulesets/ad-networks.md`.
 
 ## Roadmap
 
@@ -161,7 +169,7 @@ src/options/       options page stub
 src/content/       popup/redirect guard (guard-main.ts/guard-bridge.ts) +
                    cosmetic content script stub (Phase 2)
 src/shared/        typed storage + messaging wrappers
-rulesets/          hand-written test DNR ruleset + its documentation
+rulesets/          test DNR ruleset + curated ad-networks ruleset, each documented
 tests/unit/        Vitest unit tests (background logic, chrome.* mock)
 tests/e2e/         Playwright e2e smoke tests
 docs/              GitHub Pages landing page (this repo's marketing site)

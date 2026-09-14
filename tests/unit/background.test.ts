@@ -55,13 +55,13 @@ describe("background service worker", () => {
 
     await send({ type: "TOGGLE_GLOBAL" });
     expect(chromeMock.declarativeNetRequest.updateEnabledRulesets).toHaveBeenCalledWith({
-      disableRulesetIds: ["test-ruleset"]
+      disableRulesetIds: ["test-ruleset", "ad-networks"]
     });
     expect((storageData.nullbanner as { globalEnabled: boolean }).globalEnabled).toBe(false);
 
     await send({ type: "TOGGLE_GLOBAL" });
     expect(chromeMock.declarativeNetRequest.updateEnabledRulesets).toHaveBeenCalledWith({
-      enableRulesetIds: ["test-ruleset"]
+      enableRulesetIds: ["test-ruleset", "ad-networks"]
     });
     expect((storageData.nullbanner as { globalEnabled: boolean }).globalEnabled).toBe(true);
   });

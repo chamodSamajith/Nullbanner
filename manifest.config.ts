@@ -67,6 +67,11 @@ export default defineManifest({
         id: "test-ruleset",
         enabled: true,
         path: "rulesets/test-ruleset.json"
+      },
+      {
+        id: "ad-networks",
+        enabled: true,
+        path: "rulesets/ad-networks.json"
       }
     ]
   },

@@ -8,6 +8,11 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 
 export function startFixtureServer(port: number) {
   const server = http.createServer((req, res) => {
+    if (/^\/[a-f0-9]{32}\/invoke\.js$/.test(req.url ?? "")) {
+      res.writeHead(200, { "content-type": "application/javascript" });
+      res.end("document.getElementById('loader').textContent = 'loader-ran';");
+      return;
+    }
     if (req.url === "/ads/banner.js") {
       res.writeHead(200, { "content-type": "application/javascript" });
       res.end("// should never be served if DNR blocked it");
@@ -15,6 +20,18 @@ export function startFixtureServer(port: number) {
     }
     if (req.url === "/" || req.url === "/blocked-request.html") {
       readFile(path.join(dir, "fixtures/blocked-request.html"))
+        .then((buf) => {
+          res.writeHead(200, { "content-type": "text/html" });
+          res.end(buf);
+        })
+        .catch(() => {
+          res.writeHead(404);
+          res.end();
+        });
+      return;
+    }
+    if (req.url === "/popunder-loader.html") {
+      readFile(path.join(dir, "fixtures/popunder-loader.html"))
         .then((buf) => {
           res.writeHead(200, { "content-type": "text/html" });
           res.end(buf);

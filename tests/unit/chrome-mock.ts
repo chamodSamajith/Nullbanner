@@ -11,7 +11,7 @@ import { vi } from "vitest";
 export function installChromeMock() {
   const storageData: Record<string, unknown> = {};
   let dynamicRules: chrome.declarativeNetRequest.Rule[] = [];
-  const enabledRulesets = new Set<string>(["test-ruleset"]);
+  const enabledRulesets = new Set<string>(["test-ruleset", "ad-networks"]);
   const messageListeners: Array<
     (message: unknown, sender: unknown, sendResponse: (r: unknown) => void) => boolean | void
   > = [];

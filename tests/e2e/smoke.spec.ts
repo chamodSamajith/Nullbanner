@@ -42,6 +42,12 @@ test("blocks a fixture request matching the test ruleset", async () => {
   await expect(page.locator("#result")).toHaveText("blocked", { timeout: 5000 });
 });
 
+test("ad-networks ruleset blocks a popunder loader by URL signature", async () => {
+  const page = await context.newPage();
+  await page.goto(`http://localhost:${PORT}/popunder-loader.html`);
+  await expect(page.locator("#loader")).toHaveText("loader-blocked", { timeout: 5000 });
+});
+
 test("popup guard blocks a window.open hijack triggered by a page click", async () => {
   const page = await context.newPage();
   await page.goto(`http://localhost:${PORT}/popup-hijack.html`);

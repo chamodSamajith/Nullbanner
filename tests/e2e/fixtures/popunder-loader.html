@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+  <head><title>Nullbanner popunder-loader fixture</title></head>
+  <body>
+    <div id="loader">loader-not-run</div>
+    <!-- Same URL shape as the Adsterra-style loader seen on lookmovie.date.
+         Served from 127.0.0.1 while the page is on localhost so it counts as
+         third-party for rule 1 of rulesets/ad-networks.json. -->
+    <script src="http://127.0.0.1:8934/8d6c57769d081d871ece6843da2b619d/invoke.js"
+            onerror="document.getElementById('loader').textContent = 'loader-blocked'"></script>
+  </body>
+</html>
